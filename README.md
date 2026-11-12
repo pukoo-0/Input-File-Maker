@@ -5,6 +5,17 @@
 A Streamlit app that builds input files for **ORCA** and **Quantum ESPRESSO**, with checks for common mistakes,
 a 3D structure viewer, and cluster job scripts.
 
+## Two versions
+
+- **Web version** (`docs/index.html`): a fully custom interface with a live preview of every input file, an interactive
+  3D viewer and editable tables. Python runs inside the browser (Pyodide), so nothing is sent to a server. Host it free
+  on **GitHub Pages** (Settings → Pages → branch `main`, folder `/docs`), deploy `streamlit_web.py` on Streamlit, or
+  simply open the file. The first start takes 10–20 seconds.
+- **Streamlit version** (`app.py`): the original interface. It also has the primitive-cell tool, which needs spglib
+  (that library may not be available in the browser).
+
+Both versions use the same Python input builders, so their input files are identical.
+
 ## Highlights
 
 - **3D viewer** of the structure (rotate, zoom, repeat the cell), with fixed atoms shown in red
@@ -50,6 +61,16 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+## Updating the web version
+
+The web page embeds the Python modules. After changing any of them, rebuild it:
+
+```bash
+python build_web.py
+```
+
+A test checks that `docs/index.html` matches the current modules, so GitHub will tell you if you forget.
+
 ## Tests
 
 ```bash
@@ -64,6 +85,11 @@ The tests run automatically on GitHub for every push (see `.github/workflows/tes
 | File | What it does |
 |---|---|
 | `app.py` | Streamlit interface |
+| `docs/index.html` | Web version (built file, don’t edit by hand) |
+| `web/index.src.html` | Web version source: layout, styling and interface code |
+| `web/bridge.py` | Connects the web page to the Python builders |
+| `build_web.py` | Builds `docs/index.html` |
+| `streamlit_web.py` | Serves the web version from Streamlit |
 | `orca_input.py` | ORCA input builder and checks |
 | `qe_input.py` | Quantum ESPRESSO input builders, workflows and checks |
 | `structures.py` | Structure readers, structure tools, k-grids, band paths, 3D viewer |

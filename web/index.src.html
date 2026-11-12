@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DFT Input Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F3F5F8; --surface: #FFFFFF; --ink: #0F172A; --muted: #64748B; --faint: #94A3B8; --line: #E2E8F0;
+  --soft: #F1F5F9; --accent: #0F766E; --accent-ink: #FFFFFF; --accent-soft: #E3F3F0; --accent-line: #A7DCD3;
+  --warn: #9A6412; --warn-soft: #FDF5E1; --warn-line: #F1DCA7; --bad: #B3360B; --bad-soft: #FDECE4; --bad-line: #F6C8B2;
+  --code-bg: #0B1220; --code-ink: #DCE5F1; --code-dim: #5B6B82; --code-key: #7DD3FC; --code-str: #A7F3D0;
+  --code-num: #FCD34D; --code-head: #F0ABFC; --code-bool: #FDBA74;
+  --shadow: 0 1px 2px rgba(15,23,42,.05), 0 6px 20px -12px rgba(15,23,42,.18);
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --mol-bg: #FFFFFF;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0A0F1A; --surface: #111827; --ink: #E6EDF6; --muted: #94A3B8; --faint: #64748B; --line: #1E293B;
+    --soft: #172033; --accent: #2DD4BF; --accent-ink: #042F2A; --accent-soft: #0E2C2A; --accent-line: #1C5B54;
+    --warn: #F5C46B; --warn-soft: #2A2112; --warn-line: #4A3A17; --bad: #FB9A74; --bad-soft: #2C1710; --bad-line: #4E2618;
+    --code-bg: #070B14; --mol-bg: #111827;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { font: 14.5px/1.5 var(--sans); color: var(--ink); background: var(--bg); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, .mono { font-family: var(--mono); }
+
+/* ---------- top bar ---------- */
+.top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 18px; padding: 10px 18px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.logo { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex: none;
+  background: linear-gradient(135deg, #0F766E, #0F172A); color: #5EEAD4; font: 600 17px var(--mono); }
+.brand b { display: block; font-size: 15px; letter-spacing: -.01em; }
+.brand small { display: block; color: var(--muted); font-size: 11.5px; }
+.seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--soft); border: 1px solid var(--line); }
+.seg button { border: 0; background: none; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
+  color: var(--muted); white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.top .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface);
+  padding: 7px 12px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.btn:hover { border-color: var(--faint); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.ghost { background: none; border-color: transparent; color: var(--muted); padding: 6px 8px; }
+.btn.small { padding: 5px 9px; font-size: 12.5px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- shell ---------- */
+.shell { display: grid; grid-template-columns: 290px minmax(0, 1fr) minmax(0, .92fr); gap: 16px; padding: 16px;
+  align-items: start; max-width: 1820px; margin: 0 auto; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.card + .card { margin-top: 14px; }
+.card-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px 0; }
+.card-h h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.card-b { padding: 10px 14px 14px; }
+.left, .right { min-width: 0; }
+.right { position: sticky; top: 70px; }
+
+/* ---------- structure panel ---------- */
+.drop { border: 1.5px dashed var(--line); border-radius: 12px; padding: 16px 12px; text-align: center; cursor: pointer;
+  color: var(--muted); transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.drop b { color: var(--ink); }
+.drop small { display: block; font-size: 12px; margin-top: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip { border: 1px solid var(--line); background: var(--soft); border-radius: 999px; padding: 4px 10px; font-size: 12.5px;
+  cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.summary { margin-top: 12px; }
+.formula { font: 600 21px var(--sans); letter-spacing: -.01em; }
+.formula sub { font-size: .62em; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12.5px; margin-top: 6px; }
+.kv span:nth-child(odd) { color: var(--muted); }
+.kv span:nth-child(even) { font-family: var(--mono); }
+.notes { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.mini-drop { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px;
+  padding: 8px 10px; border: 1px dashed var(--line); border-radius: 10px; font-size: 12.5px; color: var(--muted); }
+.mini-drop b { color: var(--ink); font-weight: 600; }
+.tool-row { display: flex; align-items: flex-end; gap: 6px; margin-top: 8px; }
+.tool-row > div { flex: 1; min-width: 0; }
+.tool-row label { font-size: 11px; color: var(--muted); display: block; }
+.tool-row input, .tool-row select { width: 100%; }
+.tool-title { font-size: 12.5px; font-weight: 600; margin-top: 12px; }
+.opchain { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 10px; font-size: 12px; }
+.opchain .op { background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 6px; padding: 1px 7px;
+  font-family: var(--mono); }
+.recipe { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
+  padding: 9px 11px; cursor: pointer; margin-top: 6px; }
+.recipe:hover { border-color: var(--accent); background: var(--accent-soft); }
+.recipe b { display: block; font-size: 13px; }
+.recipe span { display: block; font-size: 12px; color: var(--muted); }
+
+/* ---------- form ---------- */
+.tabs { display: flex; gap: 2px; overflow-x: auto; padding: 6px 8px 0; border-bottom: 1px solid var(--line);
+  scrollbar-width: thin; }
+.tabs button { border: 0; background: none; padding: 9px 10px 10px; cursor: pointer; font-weight: 600; color: var(--muted);
+  border-bottom: 2px solid transparent; white-space: nowrap; font-size: 13.5px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabs button .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--bad);
+  margin-left: 5px; vertical-align: middle; }
+.form { padding: 16px 18px 20px; }
+.lead { color: var(--muted); font-size: 13px; margin: 0 0 14px; max-width: 80ch; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.grid .w2 { grid-column: 1 / -1; }
+.group-title { grid-column: 1 / -1; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  font-weight: 600; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.group-title:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.field label.l { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px; }
+.field .h { font-size: 12px; color: var(--muted); margin-top: 4px; }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 7px 10px;
+  transition: border-color .15s, box-shadow .15s; }
+textarea { font-family: var(--mono); font-size: 13px; min-height: 90px; resize: vertical; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+input[type=number] { font-family: var(--mono); }
+.vec3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.check { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; padding: 6px 0; }
+.check input { width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--accent); flex: none; }
+.check span { font-weight: 600; font-size: 13px; }
+.check small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.segs { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.segs button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 11px; cursor: pointer;
+  font-size: 13px; font-weight: 500; }
+.segs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.pill-info { display: inline-flex; align-items: center; gap: 8px; padding: 7px 11px; border-radius: 9px; font-size: 13px;
+  background: var(--soft); border: 1px solid var(--line); }
+.pill-info.ok { background: var(--accent-soft); border-color: var(--accent-line); }
+.pill-info.bad { background: var(--bad-soft); border-color: var(--bad-line); color: var(--bad); }
+.pill-info b { font-family: var(--mono); }
+.callout { border-radius: 10px; padding: 10px 12px; font-size: 13px; background: var(--soft); border: 1px solid var(--line); }
+
+/* ---------- tables ---------- */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table.tbl { border-collapse: collapse; width: 100%; font-size: 13px; }
+.tbl th { text-align: left; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted);
+  background: var(--soft); padding: 7px 8px; position: sticky; top: 0; white-space: nowrap; }
+.tbl td { padding: 4px 6px; border-top: 1px solid var(--line); white-space: nowrap; }
+.tbl td.num { font-family: var(--mono); color: var(--muted); }
+.tbl input[type=text], .tbl input[type=number] { padding: 4px 7px; border-radius: 7px; min-width: 64px; }
+.tbl input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+.tbl .del { border: 0; background: none; color: var(--faint); cursor: pointer; font-size: 16px; }
+.tbl-scroll { max-height: 360px; overflow: auto; }
+.tbl-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.tbl-tools input { width: 90px; }
+
+/* ---------- right: viewer, status, output ---------- */
+.viewer { position: relative; height: 330px; border-radius: 10px; overflow: hidden; background: var(--mol-bg);
+  border: 1px solid var(--line); }
+.viewer .ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+.vbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.vbar select { width: auto; padding: 4px 8px; }
+.legend { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; background: #E11D48; display: inline-block; }
+.status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; border-radius: 999px;
+  padding: 4px 10px; border: 1px solid; }
+.badge.ok { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.badge.bad { background: var(--bad-soft); border-color: var(--bad-line); color: var(--bad); }
+.badge.warn { background: var(--warn-soft); border-color: var(--warn-line); color: var(--warn); }
+.issues { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; max-height: 190px; overflow: auto; }
+.issues li { font-size: 12.8px; border-radius: 9px; padding: 7px 10px 7px 30px; position: relative; border: 1px solid; }
+.issues li::before { position: absolute; left: 10px; top: 7px; font-weight: 700; }
+.issues li.bad { background: var(--bad-soft); border-color: var(--bad-line); }
+.issues li.bad::before { content: "✕"; color: var(--bad); }
+.issues li.warn { background: var(--warn-soft); border-color: var(--warn-line); }
+.issues li.warn::before { content: "!"; color: var(--warn); left: 13px; }
+.ftabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; }
+.ftabs button { border: 1px solid var(--line); background: var(--soft); border-radius: 8px; padding: 5px 10px; cursor: pointer;
+  font: 500 12.5px var(--mono); white-space: nowrap; color: var(--muted); }
+.ftabs button[aria-selected="true"] { background: var(--code-bg); border-color: var(--code-bg); color: #E2E8F0; }
+.codebox { position: relative; background: var(--code-bg); border-radius: 12px; overflow: hidden; }
+.codebar { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px 7px 14px;
+  border-bottom: 1px solid #1B2638; color: #8A9AB2; font: 500 12px var(--mono); }
+.codebar .btn { background: #142033; border-color: #22324B; color: #DCE5F1; }
+pre.code { margin: 0; padding: 12px 0; max-height: 52vh; overflow: auto; font: 12.8px/1.6 var(--mono); color: var(--code-ink);
+  counter-reset: ln; tab-size: 4; }
+pre.code .line { display: block; padding: 0 14px 0 0; white-space: pre; }
+pre.code .line::before { counter-increment: ln; content: counter(ln); display: inline-block; width: 3.2em; padding-right: 1em;
+  text-align: right; color: var(--code-dim); user-select: none; }
+.tk-com { color: var(--code-dim); font-style: italic; }
+.tk-key { color: var(--code-key); }
+.tk-str { color: var(--code-str); }
+.tk-num { color: var(--code-num); }
+.tk-head { color: var(--code-head); font-weight: 600; }
+.tk-bool { color: var(--code-bool); }
+.tk-bang { color: #5EEAD4; font-weight: 600; }
+.empty { color: var(--muted); font-size: 13px; padding: 26px 8px; text-align: center; }
+
+/* ---------- overlay, toast ---------- */
+.overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(4px); }
+.overlay[hidden] { display: none; }
+.loader { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px 26px; width: min(420px, 92vw);
+  box-shadow: var(--shadow); }
+.loader h3 { margin: 0 0 4px; font-size: 16px; }
+.loader p { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 13.5px; }
+.steps li { display: flex; gap: 9px; align-items: center; color: var(--muted); }
+.steps li::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); flex: none; }
+.steps li.doing { color: var(--ink); }
+.steps li.doing::before { border-color: var(--accent); border-top-color: transparent; animation: spin .8s linear infinite; }
+.steps li.done { color: var(--ink); }
+.steps li.done::before { background: var(--accent); border-color: var(--accent); }
+.steps li.fail::before { background: var(--bad); border-color: var(--bad); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px); opacity: 0; z-index: 60;
+  background: var(--ink); color: var(--surface); padding: 9px 14px; border-radius: 10px; font-size: 13px; pointer-events: none;
+  transition: opacity .2s, transform .2s; max-width: 90vw; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+@media (max-width: 1320px) {
+  .shell { grid-template-columns: 280px minmax(0, 1fr); }
+  .right { grid-column: 1 / -1; position: static; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 14px; }
+  .right .card + .card { margin-top: 0; }
+}
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding: 10px; }
+  .top { position: static; }
+  .right > .card { min-width: 0; }
+  .right { grid-template-columns: minmax(0, 1fr); }
+  .grid { grid-template-columns: 1fr; }
+  .top { flex-wrap: wrap; }
+  .top .actions { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><div class="logo">∂</div><div><b>DFT Input Maker</b><small>ORCA · Quantum ESPRESSO</small></div></div>
+  <div class="seg" id="prog" role="group" aria-label="Program">
+    <button data-p="ORCA" aria-pressed="true">ORCA</button>
+    <button data-p="QE" aria-pressed="false">Quantum ESPRESSO</button>
+  </div>
+  <div class="actions">
+    <button class="btn" id="btn-load" title="Load a settings file you saved earlier">Load settings</button>
+    <button class="btn" id="btn-save" title="Save every setting to a small file">Save settings</button>
+    <button class="btn primary" id="btn-zip">Download all files</button>
+  </div>
+</header>
+
+<main class="shell">
+  <aside class="left">
+    <div class="card">
+      <div class="card-h"><h2>Structure</h2><button class="btn ghost small" id="btn-clear" hidden>Clear</button></div>
+      <div class="card-b">
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload a structure file">
+          <b>Drop a structure here</b><small>or click to choose · .xyz, .cif, POSCAR, CONTCAR, .vasp</small>
+        </div>
+        <div class="chips" id="examples"></div>
+        <div class="summary" id="summary"></div>
+        <div class="mini-drop" id="final-drop" title="Only needed for NEB">
+          <span>Final structure for NEB: <b id="final-name">none</b></span>
+          <span><button class="btn small" id="btn-final">Choose</button>
+          <button class="btn ghost small" id="btn-final-clear" hidden>✕</button></span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="tools-card" hidden>
+      <div class="card-h"><h2>Structure tools</h2></div>
+      <div class="card-b" id="tools"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Quick-start recipes</h2></div>
+      <div class="card-b" id="recipes"></div>
+    </div>
+  </aside>
+
+  <section class="center card">
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+    <div class="form" id="form"></div>
+  </section>
+
+  <section class="right">
+    <div class="card">
+      <div class="card-h"><h2>3D view</h2><button class="btn ghost small" id="btn-reset-view">Reset view</button></div>
+      <div class="card-b">
+        <div class="viewer" id="viewer"><div class="ph" id="viewer-ph">Load a structure to see it here.</div></div>
+        <div class="vbar">
+          <label>Repeat <select id="v-repeat"><option>1×1×1</option><option>2×2×1</option><option>2×2×2</option><option>3×3×1</option></select></label>
+          <label class="check" style="padding:0"><input type="checkbox" id="v-labels"><span style="font-weight:500">Atom numbers</span></label>
+          <span class="legend" id="v-legend" hidden><i></i>fixed atoms</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Input files</h2><div class="status" id="status"></div></div>
+      <div class="card-b">
+        <ul class="issues" id="issues"></ul>
+        <div style="margin-top:12px">
+          <div class="ftabs" id="ftabs"></div>
+          <div class="codebox">
+            <div class="codebar"><span id="fname">—</span>
+              <span><button class="btn small" id="btn-copy">Copy</button> <button class="btn small" id="btn-dl">Download</button></span></div>
+            <pre class="code" id="code"><span class="line"></span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="overlay" id="loading">
+  <div class="loader">
+    <h3>Starting the input maker</h3>
+    <p>Python runs inside your browser, so nothing is sent anywhere. The first start takes 10–20 seconds.</p>
+    <ul class="steps" id="steps">
+      <li data-s="py">Starting Python</li>
+      <li data-s="np">Loading NumPy</li>
+      <li data-s="code">Loading the input builders</li>
+    </ul>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="file-struct" hidden>
+<input type="file" id="file-final" hidden>
+<input type="file" id="file-settings" accept=".json,application/json" hidden>
+<input type="file" id="file-lib" accept=".json,.djson,.csv" hidden>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+<script>
+"use strict";
+const PY_FILES = /*__PY_FILES__*/{};
+const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
+const STORE_KEY = "dft-input-maker-web-v1";
+
+/* =================================================================
+   Small helpers
+   ================================================================= */
+const $ = (sel) => document.querySelector(sel);
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k === "class") e.className = v;
+    else if (k === "html") e.innerHTML = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, "");
+    else e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    e.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return e;
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const fmt = (v, d = 4) => (v === null || v === undefined || !isFinite(v)) ? "–" : Number(v).toPrecision(d).replace(/\.?0+(e|$)/, "$1");
+let toastTimer = null;
+function toast(msg, ms = 2600) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), ms);
+}
+function readFile(file) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(file); });
+}
+function download(name, data, type = "text/plain") {
+  const blob = data instanceof Blob ? data : new Blob([data], { type });
+  const a = h("a", { href: URL.createObjectURL(blob), download: name });
+  document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* =================================================================
+   Python (Pyodide)
+   ================================================================= */
+let py = null, OPTS = null, pyBuild = null;
+const have = { ase: false, spglib: false };
+function step(name, cls) { const li = document.querySelector(`#steps li[data-s="${name}"]`); if (li) li.className = cls; }
+async function bootPython() {
+  step("py", "doing");
+  py = await loadPyodide({ indexURL: PYODIDE_URL });
+  step("py", "done"); step("np", "doing");
+  await py.loadPackage("numpy");
+  step("np", "done"); step("code", "doing");
+  py.runPython("import sys, os; os.makedirs('/home/pyodide/dft', exist_ok=True); sys.path.insert(0, '/home/pyodide/dft')");
+  for (const [name, src] of Object.entries(PY_FILES)) py.FS.writeFile(`/home/pyodide/dft/${name}`, src);
+  py.runPython("import bridge");
+  const bridge = py.pyimport("bridge");
+  OPTS = JSON.parse(bridge.options());
+  pyBuild = bridge;
+  have.ase = bridge.have("ase"); have.spglib = bridge.have("spglib");
+  step("code", "done");
+}
+async function ensurePackage(name) {
+  if (have[name]) return true;
+  toast(name === "ase" ? "Loading ASE (about 30 MB, only the first time)…" : "Loading spglib…", 6000);
+  try { await py.loadPackage(name); } catch (e) { /* not in the Pyodide distribution */ }
+  if (!pyBuild.have(name)) {
+    try {
+      await py.loadPackage("micropip");
+      const micropip = py.pyimport("micropip");
+      await micropip.install(name);
+    } catch (e) { /* no browser build available */ }
+  }
+  have[name] = pyBuild.have(name);
+  if (!have[name]) toast(`${name} isn’t available in the browser version. Use the Streamlit version for this tool.`, 5000);
+  else toast(`${name} is ready.`);
+  return have[name];
+}
+
+/* =================================================================
+   State
+   ================================================================= */
+let state = null;
+function defaultState() {
+  const od = clone(OPTS.orca.defaults), qd = clone(OPTS.qe.defaults);
+  return {
+    program: "ORCA", tab: { ORCA: 0, QE: 0 },
+    structure: null, final: null, ops: [],
+    orca: od,
+    qe: Object.assign(qd, { kspacing: 0.25, kgrid_auto: true, ecutrho_auto: true, nscf_auto: true, vacuum: 10.0,
+      pseudo_template: "{El}.upf", tot_mag_on: false, conv_kspacings_text: "0.5 0.4 0.3 0.25 0.2 0.15" }),
+    atoms: [], species: [], extra: [], path: [{ label: "G", k1: 0, k2: 0, k3: 0, n: 30 }, { label: "X", k1: 0, k2: 0.5, k3: 0, n: 1 }],
+    path_placeholder: true,
+    job: Object.assign(clone(OPTS.job), { enabled: true }),
+    view: { repeat: "1×1×1", labels: false },
+  };
+}
+function saveLocal() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage full or blocked */ } }
+function loadLocal() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+    if (s && s.orca && s.qe) { const d = defaultState(); return Object.assign(d, s, { orca: Object.assign(d.orca, s.orca), qe: Object.assign(d.qe, s.qe), job: Object.assign(d.job, s.job) }); }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+/* =================================================================
+   Examples and recipes
+   ================================================================= */
+const EXAMPLES = {
+  "Water molecule": { name: "water.xyz", text: "3\nwater\nO   0.000000   0.000000   0.117300\nH   0.000000   0.757200  -0.469200\nH   0.000000  -0.757200  -0.469200\n" },
+  "CsPbBr₃ perovskite": { name: "CsPbBr3.cif", text: "data_CsPbBr3\n_cell_length_a 5.874\n_cell_length_b 5.874\n_cell_length_c 5.874\n_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 90\nloop_\n_atom_site_label\n_atom_site_type_symbol\n_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\nCs1 Cs 0.5 0.5 0.5\nPb1 Pb 0.0 0.0 0.0\nBr1 Br 0.5 0.0 0.0\nBr2 Br 0.0 0.5 0.0\nBr3 Br 0.0 0.0 0.5\n" },
+  "Ni slab with O": { name: "POSCAR", text: "Ni slab\n1.0\n3.52 0 0\n0 3.52 0\n0 0 20.0\nNi O\n4 1\nSelective dynamics\nDirect\n0 0 0 F F F\n0.5 0.5 0 F F F\n0.5 0 0.088 T T T\n0 0.5 0.088 T T T\n0.25 0.25 0.2 T T T\n" },
+};
+const RECIPES = {
+  ORCA: [
+    ["Fast optimisation + frequencies", "r2SCAN-3c: a cheap, reliable composite method.", { family: "Composite", composite: "r2SCAN-3c", job: "OptFreq" }],
+    ["Accurate single-point energy", "DLPNO-CCSD(T)/def2-TZVPP on a DFT geometry.", { family: "Wavefunction", wavefunction: "DLPNO-CCSD(T)", pno: "TightPNO", basis: "def2-TZVPP", job: "SP" }],
+    ["Transition state search", "B3LYP-D3BJ/def2-SVP with frequencies to confirm it.", { family: "DFT", functional: "B3LYP", dispersion: "D3BJ", basis: "def2-SVP", job: "OptTSFreq" }],
+    ["UV-Vis spectrum in water", "TD-DFT, 20 states, CAM-B3LYP, CPCM water.", { family: "DFT", functional: "CAM-B3LYP", dispersion: "D3BJ", basis: "def2-TZVP", job: "SP", tddft: true, nroots: 20, solvation: "CPCM", solvent: "water" }],
+    ["Transition-metal complex", "TPSSh-D3BJ with help for difficult SCF.", { family: "DFT", functional: "TPSSh", dispersion: "D3BJ", basis: "def2-TZVP", job: "Opt", slowconv: "SlowConv", stability: true }],
+    ["Conformer search", "GOAT with XTB2 (ORCA 6).", { family: "xTB", xtb: "XTB2", job: "GOAT" }],
+    ["Molecular dynamics", "XTB2, 300 K, CSVR thermostat, 10 ps.", { family: "xTB", xtb: "XTB2", job: "MD", md_timestep: 0.5, md_temp: 300, md_thermostat: "CSVR", md_steps: 20000 }],
+  ],
+  QE: [
+    ["Quick SCF check", "One run to check the structure and pseudopotentials.", { workflow: "single", calculation: "scf" }],
+    ["Convergence tests", "Cutoff and k-point series, with a script that collects energies.", { workflow: "convergence", conv_mode: "both" }],
+    ["Full crystal relaxation", "vc-relax with a higher cutoff to avoid Pulay stress.", { workflow: "single", calculation: "vc-relax", ecutwfc: 60, forc_conv_thr: 1e-4 }],
+    ["Semiconductor band structure", "scf followed by bands along the path.", { workflow: "bands", occupations: "fixed" }],
+    ["DOS and projected DOS", "scf, denser nscf, dos.x and projwfc.x.", { workflow: "dos" }],
+    ["Slab with adsorbate", "Relax with dipole correction and local-TF mixing.", { workflow: "single", calculation: "relax", dipole: true, mixing_mode: "local-TF", mixing_beta: 0.2 }],
+    ["Magnetic oxide with DFT+U", "Spin-polarised; set magnetisation and U in Species.", { workflow: "single", spin: "collinear", hubbard_style: "card" }],
+    ["Ab initio MD (NVT, 300 K)", "SVR thermostat, symmetry off, 2 ps.", { workflow: "md", md_ensemble: "NVT", md_dt_fs: 1.0, nstep: 2000, ion_dynamics: "verlet", ion_temperature: "svr", tempw: 300, nosym: true, verbosity: "low" }],
+    ["Phonons at Γ", "With dielectric tensor and Born charges.", { workflow: "phonon", ph_gamma_only: true, ph_epsil: true, occupations: "fixed" }],
+  ],
+};
+const KEEP = { ORCA: ["nprocs", "maxcore", "basename", "coords", "charge", "mult"], QE: ["prefix", "outdir", "pseudo_dir", "pseudo_template", "pseudo_type", "vacuum"] };
+function applyRecipe(prog, values, title) {
+  const key = prog === "ORCA" ? "orca" : "qe";
+  const fresh = prog === "ORCA" ? clone(OPTS.orca.defaults) : defaultState().qe;
+  for (const k of KEEP[prog]) fresh[k] = state[key][k];
+  state[key] = Object.assign(fresh, values);
+  state.tab[prog] = 0;
+  renderForm(); scheduleBuild(); toast(`Applied “${title}”. Everything stays editable.`);
+}
+
+/* =================================================================
+   Form schema
+   ================================================================= */
+const opt = (v, l) => ({ v, l: l ?? String(v) });
+const opts = (arr) => arr.map((v) => (typeof v === "object" ? v : opt(v)));
+const groupOf = (dict, val) => Object.keys(dict).find((g) => dict[g].includes(val)) || Object.keys(dict)[0];
+
+function orcaTabs() {
+  const O = OPTS.orca;
+  const isFam = (...f) => (s) => f.includes(s.family);
+  const isJob = (...j) => (s) => j.includes(s.job);
+  return [
+    { title: "Method", lead: "Choose the level of theory. Basis-set and RI choices only appear when they matter.", fields: [
+      { k: "family", t: "select", label: "Method family", w: 2, options: () => opts([opt("DFT", "DFT"), opt("HF", "Hartree–Fock"), opt("Composite", "Composite (3c methods)"), opt("xTB", "Semi-empirical (GFN-xTB)"), opt("Wavefunction", "Wavefunction (MP2, coupled cluster)"), opt("CASSCF", "Multireference (CASSCF / NEVPT2)")]) },
+      { k: "_fgroup", t: "select", label: "Functional type", show: isFam("DFT"), options: () => opts(Object.keys(O.functionals)),
+        get: (s) => groupOf(O.functionals, s.functional), set: (s, v) => { s.functional = O.functionals[v][0]; } },
+      { k: "functional", t: "select", label: "Functional", show: isFam("DFT"), options: (s) => opts(O.functionals[groupOf(O.functionals, s.functional)]) },
+      { k: "composite", t: "select", label: "Composite method", show: isFam("Composite"), options: () => opts(O.composite), help: "Comes with its own basis set and dispersion correction." },
+      { k: "xtb", t: "select", label: "xTB method", show: isFam("xTB"), options: () => opts(O.xtb) },
+      { k: "wavefunction", t: "select", label: "Method", show: isFam("Wavefunction"), options: () => opts(O.wavefunction) },
+      { k: "pno", t: "segs", label: "PNO accuracy", show: (s) => s.family === "Wavefunction" && s.wavefunction.startsWith("DLPNO"), options: () => opts(["LoosePNO", "NormalPNO", "TightPNO"]), help: "TightPNO for reaction energies and weak interactions." },
+      { k: "dispersion", t: "segs", label: "Dispersion correction", show: isFam("DFT", "HF"), options: () => opts(["D3BJ", "D4", "D3ZERO", "NL", "none"]) },
+      { t: "title", label: "Basis set", show: isFam("DFT", "HF", "Wavefunction", "CASSCF") },
+      { k: "_bgroup", t: "select", label: "Basis set family", show: isFam("DFT", "HF", "Wavefunction", "CASSCF"), options: () => opts(Object.keys(O.basis_sets)),
+        get: (s) => groupOf(O.basis_sets, s.basis), set: (s, v) => { s.basis = O.basis_sets[v][Math.min(1, O.basis_sets[v].length - 1)]; } },
+      { k: "basis", t: "select", label: "Basis set", show: isFam("DFT", "HF", "Wavefunction", "CASSCF"), options: (s) => opts(O.basis_sets[groupOf(O.basis_sets, s.basis)]) },
+      { k: "ri", t: "select", label: "RI approximation", show: isFam("DFT", "HF", "Wavefunction", "CASSCF"), options: () => opts(["auto", "RIJCOSX", "RI", "RIJK", "RIJONX", "NoRI"]), help: "“auto”: RI for pure functionals, RIJCOSX for hybrids and wavefunction methods." },
+      { k: "aux_j", t: "text", label: "Auxiliary basis for RI", show: isFam("DFT", "HF", "Wavefunction", "CASSCF"), help: "“auto” picks it for you." },
+      { k: "aux_c", t: "text", label: "Correlation auxiliary basis (/C)", show: (s) => s.family === "Wavefunction" || (s.family === "DFT" && groupOf(O.functionals, s.functional) === "Double hybrid") },
+      { k: "relativistic", t: "segs", label: "Scalar relativistic", show: isFam("DFT", "HF", "Wavefunction", "CASSCF"), options: () => opts(["none", "ZORA", "DKH", "X2C"]), help: "Only for heavy elements without effective core potentials." },
+      { k: "reference", t: "select", label: "Reference", show: isFam("DFT", "HF", "Wavefunction"), options: () => opts(["auto", "restricted", "unrestricted", "restricted-open"]) },
+      { t: "title", label: "Charge and spin" },
+      { k: "charge", t: "int", label: "Charge" },
+      { k: "mult", t: "int", label: "Multiplicity (2S + 1)", min: 1 },
+      { t: "custom", w: 2, render: renderElectrons },
+    ]},
+    { title: "Job", lead: "What ORCA should do with the structure.", fields: [
+      { k: "job", t: "select", label: "Job type", w: 2, options: () => Object.entries(O.jobs).map(([v, l]) => opt(v, l)) },
+      { k: "opt_conv", t: "segs", label: "Optimisation convergence", show: isJob("Opt", "OptFreq", "OptTS", "OptTSFreq", "Scan"), options: () => opts(["loose", "normal", "tight", "verytight"]) },
+      { k: "opt_maxiter", t: "int", label: "Max optimisation cycles (0 = default)", min: 0, show: isJob("Opt", "OptFreq", "OptTS", "OptTSFreq", "Scan") },
+      { k: "ts_recalc_hess", t: "int", label: "Recalculate Hessian every N steps (0 = never)", min: 0, show: isJob("OptTS", "OptTSFreq") },
+      { k: "numfreq", t: "check", label: "Numerical frequencies", help: "Needed for some methods and for Raman.", show: isJob("Freq", "OptFreq", "OptTSFreq") },
+      { k: "raman", t: "check", label: "Raman intensities", show: isJob("Freq", "OptFreq", "OptTSFreq") },
+      { k: "temperature", t: "num", label: "Temperature (K)", show: isJob("Freq", "OptFreq", "OptTSFreq") },
+      { k: "pressure", t: "num", label: "Pressure (atm)", show: isJob("Freq", "OptFreq", "OptTSFreq") },
+      { k: "scan_relaxed", t: "segs", label: "Scan type", show: isJob("Scan"), options: () => [opt(true, "Relaxed"), opt(false, "Rigid")] },
+      { k: "scan_type", t: "segs", label: "Coordinate", show: isJob("Scan"), options: () => [opt("B", "Bond (Å)"), opt("A", "Angle (°)"), opt("D", "Dihedral (°)")] },
+      { k: "scan_atoms", t: "text", label: "Atom numbers (from 0)", show: isJob("Scan") },
+      { k: "scan_steps", t: "int", label: "Number of points", min: 2, show: isJob("Scan") },
+      { k: "scan_start", t: "num", label: "Start", show: isJob("Scan") },
+      { k: "scan_end", t: "num", label: "End", show: isJob("Scan") },
+      { k: "irc_direction", t: "segs", label: "IRC direction", show: isJob("IRC"), options: () => opts(["both", "forward", "backward"]) },
+      { k: "irc_maxiter", t: "int", label: "Max steps per direction", min: 1, show: isJob("IRC") },
+      { k: "neb_images", t: "int", label: "Number of images", min: 3, show: isJob("NEB-CI", "NEB-TS"), help: "Upload the final structure in the Structure panel." },
+      { k: "md_timestep", t: "num", label: "Time step (fs)", show: isJob("MD") },
+      { k: "md_steps", t: "int", label: "Number of steps", min: 1, show: isJob("MD") },
+      { k: "md_temp", t: "num", label: "Temperature (K)", show: isJob("MD") },
+      { k: "md_thermostat", t: "segs", label: "Thermostat", show: isJob("MD"), options: () => opts(["CSVR", "Berendsen", "NHC", "none"]), help: "CSVR samples the canonical ensemble; none = constant energy." },
+      { k: "md_timecon", t: "num", label: "Thermostat time constant (fs)", show: isJob("MD") },
+      { k: "md_stride", t: "int", label: "Save every N steps", min: 1, show: isJob("MD") },
+      { t: "custom", w: 2, show: isJob("MD"), render: (s) => h("div", { class: "pill-info" }, "Total time ", h("b", {}, fmt(s.md_steps * s.md_timestep / 1000, 3) + " ps")) },
+      { t: "title", label: "Constraints (optimisations and scans)" },
+      { k: "fix_atoms", t: "text", label: "Fix these atoms (numbers from 0)", help: "Example: 0 1 5. Fixed atoms show red in the 3D view." },
+      { k: "constraints", t: "textarea", label: "Other constraints, one per line", help: "{B 0 1 C} bond · {A 0 1 2 C} angle · {D 0 1 2 3 C} dihedral" },
+    ]},
+    { title: "Solvent & properties", lead: "Implicit solvation, excited states and molecular properties.", fields: [
+      { k: "solvation", t: "segs", label: "Solvation model", options: () => opts(["none", "CPCM", "SMD", "ALPB"]), help: "SMD for solvation free energies; CPCM is faster; ALPB is for xTB." },
+      { k: "solvent", t: "select", label: "Solvent", show: (s) => s.solvation !== "none", options: () => opts(O.solvents) },
+      { t: "title", label: "Excited states" },
+      { k: "tddft", t: "check", label: "TD-DFT / CIS excited states", w: 2 },
+      { k: "nroots", t: "int", label: "Number of excited states", min: 1, show: (s) => s.tddft },
+      { k: "iroot", t: "int", label: "Follow this state (0 = ground)", min: 0, show: (s) => s.tddft },
+      { k: "tda", t: "check", label: "Tamm–Dancoff approximation", show: (s) => s.tddft },
+      { k: "triplets", t: "check", label: "Also triplets", show: (s) => s.tddft },
+      { t: "title", label: "Properties" },
+      { k: "nmr", t: "check", label: "NMR shieldings" }, { k: "epr", t: "check", label: "EPR g-tensor" },
+      { k: "hirshfeld", t: "check", label: "Hirshfeld charges" }, { k: "chelpg", t: "check", label: "CHELPG charges" },
+      { k: "nbo", t: "check", label: "NBO analysis", help: "Needs the NBO program." }, { k: "polar", t: "check", label: "Polarisability" },
+      { k: "largeprint", t: "check", label: "Detailed output (LargePrint)" },
+    ]},
+    { title: "SCF & accuracy", lead: "Convergence, grids and help for difficult cases.", fields: [
+      { k: "scf_conv", t: "select", label: "SCF convergence", options: () => opts(["LooseSCF", "NormalSCF", "TightSCF", "VeryTightSCF", "default"]), help: "TightSCF for optimisations and frequencies." },
+      { k: "slowconv", t: "segs", label: "Difficult convergence", options: () => opts(["none", "SlowConv", "VerySlowConv"]) },
+      { k: "scf_maxiter", t: "int", label: "Max SCF iterations (0 = default)", min: 0 },
+      { k: "grid", t: "select", label: "Integration grid (DFT)", options: () => opts(["default", "DefGrid1", "DefGrid2", "DefGrid3"]) },
+      { k: "guess", t: "select", label: "Initial guess", options: () => opts(["default", "PModel", "HCore", "Hueckel", "PAtom", "MORead"]) },
+      { k: "moread_file", t: "text", label: "Orbital file (.gbw)", show: (s) => s.guess === "MORead" },
+      { k: "brokensym", t: "text", label: "Broken symmetry (e.g. 1,1)", help: "Leave empty if not needed." },
+      { k: "trah", t: "check", label: "Allow TRAH (robust SCF fallback)" },
+      { k: "stability", t: "check", label: "Check SCF stability", help: "For diradicals and other tricky cases." },
+    ]},
+    { title: "Advanced", lead: "Active spaces and anything not covered by the menus.", fields: [
+      { t: "title", label: "CASSCF active space", show: isFam("CASSCF") },
+      { k: "cas_nel", t: "int", label: "Active electrons", min: 1, show: isFam("CASSCF") },
+      { k: "cas_norb", t: "int", label: "Active orbitals", min: 1, show: isFam("CASSCF") },
+      { k: "cas_nroots", t: "int", label: "Roots", min: 1, show: isFam("CASSCF") },
+      { k: "cas_pt", t: "segs", label: "Perturbation correction", show: isFam("CASSCF"), options: () => opts(["none", "SC_NEVPT2", "FIC_NEVPT2"]) },
+      { t: "title", label: "Anything else (added exactly as written)" },
+      { k: "extra_keywords", t: "text", label: "Extra ! keywords", w: 2, help: "Example: PrintBasis KeepDens" },
+      { k: "extra_blocks", t: "textarea", label: "Extra % blocks", w: 2, help: "Any ORCA block, e.g. %output Print[P_Hirshfeld] 1 end" },
+    ]},
+    { title: "Resources", lead: "Cores, memory and file names.", fields: [
+      { k: "nprocs", t: "int", label: "CPU cores (%pal)", min: 1 },
+      { k: "maxcore", t: "int", label: "Memory per core (MB)", min: 100, help: "About 75% of the real memory per core." },
+      { k: "basename", t: "text", label: "File name" },
+      { k: "coords", t: "segs", label: "Coordinates", options: () => [opt("inline", "In the input"), opt("file", "Separate .xyz")] },
+    ]},
+  ];
+}
+
+function qeTabs() {
+  const Q = OPTS.qe;
+  const wf = (...w) => (s) => w.includes(s.workflow);
+  const calcOf = (s) => (s.workflow === "single" ? s.calculation : s.workflow === "md" ? "md" : "scf");
+  const isCalc = (...c) => (s) => s.workflow === "single" && c.includes(s.calculation);
+  const ionOpts = (s) => ({ relax: ["bfgs", "damp", "fire"], "vc-relax": ["bfgs", "damp"], md: ["verlet", "langevin"], "vc-md": ["beeman"] }[calcOf(s)] || ["bfgs"]);
+  const cellOpts = (s) => ({ "vc-relax": ["bfgs", "damp-w", "damp-pr"], "vc-md": ["pr", "w"] }[calcOf(s)] || ["bfgs"]);
+  return [
+    { title: "Workflow", lead: "Pick what you want to calculate. Multi-step workflows produce every input file plus a run script.", fields: [
+      { k: "workflow", t: "select", label: "What do you want to calculate?", w: 2, options: () => Object.entries(Q.workflows).map(([v, l]) => opt(v, l)) },
+      { k: "calculation", t: "segs", label: "Calculation", w: 2, show: wf("single"), options: () => opts(Q.calculations) },
+      { k: "prefix", t: "text", label: "prefix", help: "Name used for all output files." },
+      { k: "outdir", t: "text", label: "outdir (scratch folder)" },
+      { k: "pseudo_dir", t: "text", label: "pseudo_dir (folder with .UPF files)" },
+      { k: "verbosity", t: "segs", label: "verbosity", options: () => opts(["low", "high"]), help: "Use low for MD." },
+      { k: "coord_units", t: "segs", label: "Atomic positions in", options: () => [opt("crystal", "Fractional"), opt("angstrom", "Ångström")] },
+      { k: "vacuum", t: "num", label: "Vacuum around the molecule (Å)", show: () => lastInfo && !lastInfo.periodic, help: "QE needs a cell, so molecules are placed in a cubic box." },
+      { t: "title", label: "Convergence tests", show: wf("convergence") },
+      { k: "conv_mode", t: "segs", label: "Test", show: wf("convergence"), w: 2, options: () => [opt("both", "Cutoff and k-points"), opt("ecut", "Cutoff only"), opt("kpoints", "k-points only")] },
+      { k: "conv_ecut_start", t: "num", label: "ecutwfc from (Ry)", show: wf("convergence") },
+      { k: "conv_ecut_stop", t: "num", label: "to (Ry)", show: wf("convergence") },
+      { k: "conv_ecut_step", t: "num", label: "step (Ry)", show: wf("convergence") },
+      { k: "conv_kspacings_text", t: "text", label: "k-point spacings to test (Å⁻¹)", show: wf("convergence") },
+    ]},
+    { title: "Atoms", lead: "Rename a label to split one element into species (Fe1/Fe2 for antiferromagnets or different U). Tick a box to freeze that coordinate.", fields: [
+      { t: "custom", w: 2, render: renderAtoms },
+    ]},
+    { title: "Species", lead: "Masses, pseudopotential files, starting magnetisation and Hubbard U, per species.", fields: [
+      { k: "pseudo_type", t: "segs", label: "Pseudopotential type", options: () => [opt("US/PAW", "Ultrasoft / PAW"), opt("NC", "Norm-conserving")], help: "Sets the recommended ecutrho and the checks." },
+      { k: "pseudo_template", t: "text", label: "File name pattern", help: "{El} becomes the element, e.g. {El}.pbe-n-kjpaw_psl.1.0.0.UPF" },
+      { t: "custom", w: 2, render: renderSpecies },
+      { t: "custom", w: 2, render: renderLibrary },
+    ]},
+    { title: "Electrons & spin", lead: "Cutoffs, occupations, spin and SCF settings.", fields: [
+      { k: "ecutwfc", t: "num", label: "ecutwfc (Ry)" },
+      { k: "ecutrho", t: "num", label: "ecutrho (Ry)", disabled: (s) => s.ecutrho_auto,
+        value: (s) => s.ecutrho_auto ? (s.pseudo_type === "NC" ? 4 : 8) * s.ecutwfc : s.ecutrho },
+      { k: "ecutrho_auto", t: "check", label: "Set ecutrho automatically", help: "8× ecutwfc for US/PAW, 4× for norm-conserving.", w: 2 },
+      { k: "occupations", t: "segs", label: "occupations", w: 2, options: () => opts(["smearing", "fixed", "tetrahedra", "tetrahedra_opt"]), help: "Smearing for metals or when unsure; fixed only for insulators." },
+      { k: "smearing", t: "segs", label: "smearing", show: (s) => s.occupations === "smearing", options: () => opts(["mv", "gaussian", "mp", "fd"]) },
+      { k: "degauss", t: "num", label: "degauss (Ry)", show: (s) => s.occupations === "smearing" },
+      { t: "title", label: "Spin" },
+      { k: "spin", t: "segs", label: "Spin polarisation", w: 2, options: () => [opt("none", "None"), opt("collinear", "Collinear (nspin = 2)"), opt("noncollinear", "Non-collinear")], help: "Set starting magnetisation per species in the Species tab." },
+      { k: "lspinorb", t: "check", label: "Spin–orbit coupling", show: (s) => s.spin === "noncollinear" },
+      { k: "tot_mag_on", t: "check", label: "Fix total magnetisation", show: (s) => s.spin === "collinear" },
+      { k: "tot_magnetization", t: "num", label: "tot_magnetization (μB)", show: (s) => s.spin === "collinear" && s.tot_mag_on },
+      { k: "nbnd", t: "int", label: "nbnd (0 = automatic)", min: 0 },
+      { k: "tot_charge", t: "num", label: "tot_charge (+1 = one electron removed)" },
+      { t: "title", label: "SCF" },
+      { k: "conv_thr", t: "num", label: "conv_thr (Ry)" },
+      { k: "mixing_beta", t: "num", label: "mixing_beta", help: "Lower (0.1–0.2) if the SCF won’t converge." },
+      { k: "mixing_mode", t: "segs", label: "mixing_mode", options: () => opts(["plain", "TF", "local-TF"]), help: "local-TF helps slabs." },
+      { k: "electron_maxstep", t: "int", label: "electron_maxstep", min: 1 },
+      { k: "diagonalization", t: "select", label: "diagonalization", options: () => opts(["david", "cg", "ppcg", "paro", "rmm-davidson"]) },
+      { k: "startingwfc", t: "select", label: "startingwfc", options: () => opts(["atomic+random", "atomic", "random", "file"]) },
+      { k: "scf_must_converge", t: "check", label: "Stop if the SCF doesn’t converge" },
+    ]},
+    { title: "Functional", lead: "Exchange–correlation, dispersion, DFT+U and corrections for slabs and molecules.", fields: [
+      { k: "functional", t: "select", label: "Exchange–correlation functional", w: 2, options: () => opts(Q.functionals), help: "“From pseudopotential” uses the functional the pseudopotentials were made with." },
+      { k: "exx_nq", t: "int", label: "q-grid for exact exchange (nqx)", min: 1, show: (s) => Q.hybrids.includes(s.functional) },
+      { k: "ecutfock", t: "num", label: "ecutfock (Ry, 0 = default)", show: (s) => Q.hybrids.includes(s.functional) },
+      { k: "exxdiv", t: "select", label: "exxdiv_treatment", show: (s) => Q.hybrids.includes(s.functional), options: () => opts(["gygi-baldereschi", "vcut_spherical", "vcut_ws", "none"]) },
+      { k: "vdw", t: "segs", label: "Dispersion (vdw_corr)", w: 2, options: () => opts(["none", "grimme-d2", "grimme-d3", "ts", "mbd", "xdm"]) },
+      { k: "d3_version", t: "segs", label: "D3 damping", show: (s) => s.vdw === "grimme-d3", options: () => [opt(4, "Becke–Johnson"), opt(3, "Zero damping")] },
+      { t: "title", label: "DFT+U" },
+      { k: "hubbard_style", t: "segs", label: "Hubbard format", options: () => [opt("card", "HUBBARD card (QE 7.1+)"), opt("legacy", "Legacy")] },
+      { k: "hubbard_projector", t: "segs", label: "Projector", options: () => opts(["ortho-atomic", "atomic"]) },
+      { t: "title", label: "Molecules and slabs" },
+      { k: "isolated", t: "select", label: "assume_isolated", options: () => [opt("none", "None (periodic)"), opt("mt", "Martyna–Tuckerman (molecules)"), opt("makov-payne", "Makov–Payne (charged, cubic cells)"), opt("esm", "ESM (slabs)")] },
+      { k: "esm_bc", t: "segs", label: "esm_bc", show: (s) => s.isolated === "esm", options: () => opts(["bc1", "bc2", "bc3"]) },
+      { k: "dipole", t: "check", label: "Dipole correction (slabs)", w: 2 },
+      { k: "edir", t: "segs", label: "Slab normal (edir)", show: (s) => s.dipole, options: () => opts([1, 2, 3]) },
+      { k: "emaxpos", t: "num", label: "emaxpos (inside the vacuum)", show: (s) => s.dipole },
+      { k: "eopreg", t: "num", label: "eopreg", show: (s) => s.dipole },
+      { t: "title", label: "Symmetry" },
+      { k: "nosym", t: "check", label: "Turn off symmetry (nosym)", help: "Recommended for MD." },
+      { k: "noinv", t: "check", label: "No time-reversal symmetry (noinv)" },
+    ]},
+    { title: "k-points", lead: "Brillouin-zone sampling and the high-symmetry path for bands and phonons.", fields: [
+      { k: "k_mode", t: "segs", label: "k-points", w: 2, options: () => [opt("automatic", "Monkhorst–Pack grid"), opt("gamma", "Γ only")] },
+      { k: "kspacing", t: "num", label: "k-point spacing (Å⁻¹, 2π included)", show: (s) => s.k_mode === "automatic", help: "Smaller = denser; 0.2–0.3 is typical, metals need denser." },
+      { k: "kgrid_auto", t: "check", label: "Use the grid from the spacing", show: (s) => s.k_mode === "automatic" },
+      { k: "kgrid", t: "vec3", label: "Grid", show: (s) => s.k_mode === "automatic", disabled: (s) => s.kgrid_auto, value: (s) => (s.kgrid_auto && lastInfo && lastInfo.kgrid_auto) ? lastInfo.kgrid_auto : s.kgrid },
+      { k: "kshift", t: "vec3", label: "Shift (0 or 1)", show: (s) => s.k_mode === "automatic" },
+      { t: "custom", w: 2, show: (s) => s.workflow === "bands" || s.workflow === "phonon" || (s.workflow === "single" && s.calculation === "bands"), render: renderPath },
+    ]},
+    { title: "Dynamics", lead: "Relaxation, molecular dynamics and variable-cell settings.", fields: [
+      { t: "custom", w: 2, show: (s) => !(s.workflow === "md" || ["relax", "vc-relax", "md", "vc-md"].includes(calcOf(s))), render: () => h("div", { class: "callout" }, "These settings are used for relax, vc-relax, md and vc-md, and the MD workflow.") },
+      { k: "md_ensemble", t: "segs", label: "Ensemble", show: wf("md"), options: () => opts(["NVE", "NVT", "NPT"]), help: "NPT uses a variable cell (vc-md)." },
+      { k: "md_dt_fs", t: "num", label: "Time step (fs)", show: wf("md"), help: "Converted to Rydberg atomic units for you." },
+      { k: "nstep", t: "int", label: "nstep", min: 1 },
+      { t: "custom", show: wf("md"), render: (s) => h("div", { class: "pill-info" }, "Total time ", h("b", {}, fmt(s.nstep * s.md_dt_fs / 1000, 3) + " ps")) },
+      { k: "ion_dynamics", t: "segs", label: "ion_dynamics", options: ionOpts, show: (s) => !(s.workflow === "md" && s.md_ensemble !== "NVT") },
+      { k: "ion_temperature", t: "select", label: "Thermostat (ion_temperature)", show: (s) => (s.workflow === "md" && s.md_ensemble !== "NVE" && s.ion_dynamics !== "langevin") || isCalc("md", "vc-md")(s),
+        options: () => opts(["not_controlled", "svr", "berendsen", "andersen", "rescaling", "rescale-v", "rescale-T", "reduce-T", "initial"]), help: "svr samples the canonical ensemble correctly." },
+      { k: "tempw", t: "num", label: "Temperature (K)", show: (s) => s.workflow === "md" ? s.md_ensemble !== "NVE" : isCalc("md", "vc-md")(s) },
+      { k: "md_nraise", t: "int", label: "nraise (thermostat strength)", min: 1, show: (s) => s.workflow === "md" && ["svr", "berendsen", "andersen", "rescale-v", "rescale-T", "reduce-T"].includes(s.ion_temperature) },
+      { k: "md_tolp", t: "num", label: "tolp (K)", show: (s) => s.workflow === "md" && s.ion_temperature === "rescaling" },
+      { k: "dt", t: "num", label: "dt (Rydberg a.u.; 1 = 0.0484 fs)", show: isCalc("md", "vc-md") },
+      { k: "etot_conv_thr", t: "num", label: "etot_conv_thr (Ry)", show: (s) => s.workflow !== "md" },
+      { k: "forc_conv_thr", t: "num", label: "forc_conv_thr (Ry/Bohr)", show: (s) => s.workflow !== "md", help: "1e-4 Ry/Bohr ≈ 0.0026 eV/Å." },
+      { t: "title", label: "Cell" },
+      { k: "cell_dynamics", t: "segs", label: "cell_dynamics", options: (s) => opts(s.workflow === "md" ? ["pr", "w"] : cellOpts(s)) },
+      { k: "press", t: "num", label: "press (kbar)" },
+      { k: "press_conv_thr", t: "num", label: "press_conv_thr (kbar)", show: (s) => s.workflow !== "md" },
+      { k: "cell_dofree", t: "select", label: "cell_dofree", options: () => opts(["all", "ibrav", "shape", "volume", "x", "y", "z", "xy", "xz", "yz", "xyz", "2Dxy", "2Dshape", "epitaxial_ab", "epitaxial_ac", "epitaxial_bc"]), help: "2Dxy relaxes only the in-plane cell of a slab." },
+      { k: "max_seconds", t: "num", label: "max_seconds (0 = no limit)", help: "Stops cleanly before your cluster’s time limit." },
+    ]},
+    { title: "Post-processing", lead: "Settings for DOS, plots, phonons and NEB. Choose the matching workflow first.", fields: [
+      { t: "custom", w: 2, show: wf("single", "md", "convergence"), render: () => h("div", { class: "callout" }, "Choose the band structure, DOS, plot, phonon or NEB workflow to set up post-processing.") },
+      { k: "nscf_auto", t: "check", label: "nscf grid = 2 × the scf grid", show: wf("dos") },
+      { k: "nscf_kgrid", t: "vec3", label: "nscf k-grid", show: wf("dos"), disabled: (s) => s.nscf_auto, value: (s) => (s.nscf_auto && lastInfo && lastInfo.nscf_auto) ? lastInfo.nscf_auto : s.nscf_kgrid },
+      { k: "dos_emin", t: "num", label: "Emin (eV)", show: wf("dos") },
+      { k: "dos_emax", t: "num", label: "Emax (eV)", show: wf("dos") },
+      { k: "dos_de", t: "num", label: "DeltaE (eV)", show: wf("dos") },
+      { k: "pp_plot", t: "select", label: "What to plot (plot_num)", w: 2, show: wf("pp"), options: () => Object.entries(Q.pp_plots).map(([v, l]) => opt(Number(v), `${v}: ${l}`)) },
+      { k: "pp_kpoint", t: "int", label: "k-point number", min: 1, show: (s) => s.workflow === "pp" && s.pp_plot === 7 },
+      { k: "pp_kband", t: "int", label: "Band number", min: 1, show: (s) => s.workflow === "pp" && s.pp_plot === 7 },
+      { k: "pp_emin", t: "num", label: "emin (eV)", show: (s) => s.workflow === "pp" && s.pp_plot === 10 },
+      { k: "pp_emax", t: "num", label: "emax (eV)", show: (s) => s.workflow === "pp" && s.pp_plot === 10 },
+      { k: "pp_format", t: "segs", label: "Output format", show: wf("pp"), options: () => [opt(6, "Gaussian cube"), opt(5, "XCrySDen .xsf")] },
+      { k: "ph_gamma_only", t: "check", label: "Only the Γ point (no dispersion)", show: wf("phonon"), w: 2 },
+      { k: "ph_qgrid", t: "vec3", label: "q-grid", show: (s) => s.workflow === "phonon" && !s.ph_gamma_only },
+      { k: "ph_tr2", t: "num", label: "tr2_ph", show: wf("phonon") },
+      { k: "ph_dispersion", t: "check", label: "Dispersion along the path", show: (s) => s.workflow === "phonon" && !s.ph_gamma_only },
+      { k: "ph_dos", t: "check", label: "Phonon DOS", show: (s) => s.workflow === "phonon" && !s.ph_gamma_only },
+      { k: "ph_dos_grid", t: "vec3", label: "Phonon DOS grid", show: (s) => s.workflow === "phonon" && !s.ph_gamma_only && s.ph_dos },
+      { k: "ph_epsil", t: "check", label: "Dielectric tensor and Born charges (insulators)", show: wf("phonon") },
+      { k: "ph_asr", t: "select", label: "Acoustic sum rule", show: wf("phonon"), options: () => opts(["crystal", "simple", "one-dim", "zero-dim", "no"]) },
+      { k: "neb_images", t: "int", label: "num_of_images", min: 3, show: wf("neb"), help: "Upload the final structure in the Structure panel." },
+      { k: "neb_nstep", t: "int", label: "nstep_path", min: 1, show: wf("neb") },
+      { k: "neb_thr", t: "num", label: "path_thr (eV/Å)", show: wf("neb") },
+      { k: "neb_ds", t: "num", label: "ds", show: wf("neb") },
+      { k: "neb_opt", t: "select", label: "opt_scheme", show: wf("neb"), options: () => opts(["broyden", "broyden2", "quick-min", "sd", "langevin"]) },
+      { k: "neb_ci", t: "segs", label: "Climbing image", show: wf("neb"), options: () => opts(["auto", "no-CI", "manual"]) },
+    ]},
+    { title: "Extra", lead: "Any namelist variable or card the menus don’t cover, written exactly as typed.", fields: [
+      { t: "custom", w: 2, render: renderExtra },
+      { k: "extra_cards", t: "textarea", label: "Extra cards for pw.x (added at the end)", w: 2, help: "For example CONSTRAINTS, OCCUPATIONS or ADDITIONAL_K_POINTS." },
+    ]},
+  ];
+}
+
+function clusterTab() {
+  const j = (s) => s.enabled;
+  return { title: "Cluster", lead: "A job script for your cluster, included in the download. Save your settings to keep this setup.", target: "job", fields: [
+    { k: "enabled", t: "check", label: "Make a cluster job script", w: 2 },
+    { k: "scheduler", t: "segs", label: "Scheduler", show: j, w: 2, options: () => [opt("slurm", "SLURM"), opt("pbs", "PBS / Torque"), opt("none", "Plain script")] },
+    { k: "job_name", t: "text", label: "Job name", show: j },
+    { k: "time", t: "text", label: "Time limit (HH:MM:SS)", show: j },
+    { k: "nodes", t: "int", label: "Nodes", min: 1, show: j },
+    { k: "ntasks_per_node", t: "int", label: "MPI tasks per node", min: 1, show: j },
+    { k: "cpus_per_task", t: "int", label: "Threads per task", min: 1, show: j },
+    { k: "launcher", t: "segs", label: "MPI launcher", show: j, options: () => opts(["mpirun", "srun"]) },
+    { k: "partition", t: "text", label: "Partition / queue", show: j },
+    { k: "account", t: "text", label: "Account / project", show: j },
+    { k: "memory", t: "text", label: "Memory (e.g. 64G, optional)", show: j },
+    { k: "email", t: "text", label: "Email (optional)", show: j },
+    { k: "modules", t: "textarea", label: "Modules to load, one per line", show: j, help: "e.g. quantum-espresso/7.3 or orca/6.0" },
+    { k: "setup", t: "textarea", label: "Other setup lines", show: j },
+    { t: "custom", w: 2, show: (s) => s.enabled && lastResult && lastResult.submit, render: () => h("div", { class: "pill-info" }, "Submit with ", h("b", {}, lastResult.submit)) },
+  ]};
+}
+
+/* =================================================================
+   Rendering the form
+   ================================================================= */
+let lastResult = null, lastInfo = null;
+function currentTabs() { return [...(state.program === "ORCA" ? orcaTabs() : qeTabs()), clusterTab()]; }
+function target(tab) { return tab.target === "job" ? state.job : (state.program === "ORCA" ? state.orca : state.qe); }
+
+function renderTabs() {
+  const tabs = currentTabs(), nav = $("#tabs");
+  nav.innerHTML = "";
+  tabs.forEach((t, i) => {
+    nav.append(h("button", { role: "tab", "aria-selected": String(i === state.tab[state.program]),
+      onclick: () => { state.tab[state.program] = i; renderTabs(); renderForm(); saveLocal(); } }, t.title));
+  });
+}
+
+function fieldValue(f, s) { return f.value ? f.value(s) : f.get ? f.get(s) : s[f.k]; }
+function setValue(f, s, v, rerender) {
+  if (f.set) f.set(s, v); else s[f.k] = v;
+  if (rerender) renderForm();
+  scheduleBuild();
+}
+
+function renderField(f, s) {
+  if (f.show && !f.show(s)) return null;
+  if (f.t === "title") return h("div", { class: "group-title" }, f.label);
+  const wrap = h("div", { class: "field" + (f.w === 2 ? " w2" : "") });
+  if (f.t === "custom") { wrap.append(f.render(s)); return wrap; }
+  const v = fieldValue(f, s);
+  const disabled = f.disabled ? f.disabled(s) : false;
+  const id = "f-" + (f.k || Math.random().toString(36).slice(2));
+  if (f.t === "check") {
+    const box = h("input", { type: "checkbox", id, disabled });
+    box.checked = !!v;
+    box.addEventListener("change", () => setValue(f, s, box.checked, true));
+    wrap.append(h("label", { class: "check", for: id }, box, h("span", {}, f.label, f.help ? h("small", {}, f.help) : null)));
+    return wrap;
+  }
+  wrap.append(h("label", { class: "l", for: id }, f.label));
+  if (f.t === "select") {
+    const options = f.options(s);
+    const sel = h("select", { id, disabled });
+    options.forEach((o, i) => { const op = h("option", { value: String(i) }, o.l); if (String(o.v) === String(v)) op.selected = true; sel.append(op); });
+    sel.addEventListener("change", () => setValue(f, s, options[Number(sel.value)].v, true));
+    wrap.append(sel);
+  } else if (f.t === "segs") {
+    const g = h("div", { class: "segs", role: "group" });
+    f.options(s).forEach((o) => g.append(h("button", { type: "button", "aria-pressed": String(String(o.v) === String(v)), disabled,
+      onclick: () => setValue(f, s, o.v, true) }, o.l)));
+    wrap.append(g);
+  } else if (f.t === "num" || f.t === "int") {
+    const inp = h("input", { type: "number", id, step: f.t === "int" ? "1" : "any", min: f.min, disabled });
+    inp.value = v ?? "";
+    const parse = () => { const x = f.t === "int" ? parseInt(inp.value, 10) : parseFloat(inp.value); return Number.isFinite(x) ? x : null; };
+    inp.addEventListener("input", () => { const x = parse(); if (x !== null) setValue(f, s, x, false); });
+    inp.addEventListener("change", () => { const x = parse(); if (x === null) inp.value = fieldValue(f, s); else setValue(f, s, x, true); });
+    wrap.append(inp);
+  } else if (f.t === "text") {
+    const inp = h("input", { type: "text", id, disabled, spellcheck: "false" });
+    inp.value = v ?? "";
+    inp.addEventListener("input", () => setValue(f, s, inp.value, false));
+    inp.addEventListener("change", () => renderForm());
+    wrap.append(inp);
+  } else if (f.t === "textarea") {
+    const ta = h("textarea", { id, disabled, spellcheck: "false" });
+    ta.value = v ?? "";
+    ta.addEventListener("input", () => setValue(f, s, ta.value, false));
+    wrap.append(ta);
+  } else if (f.t === "vec3") {
+    const g = h("div", { class: "vec3" });
+    const arr = Array.isArray(v) ? v.slice() : [1, 1, 1];
+    for (let i = 0; i < 3; i++) {
+      const inp = h("input", { type: "number", step: "1", min: "0", disabled, "aria-label": `${f.label} ${i + 1}` });
+      inp.value = arr[i];
+      inp.addEventListener("input", () => { const x = parseInt(inp.value, 10); if (Number.isFinite(x)) { arr[i] = x; setValue(f, s, arr.slice(), false); } });
+      g.append(inp);
+    }
+    wrap.append(g);
+  }
+  if (f.help) wrap.append(h("div", { class: "h" }, f.help));
+  return wrap;
+}
+
+function renderForm() {
+  const tabs = currentTabs();
+  if (state.tab[state.program] >= tabs.length) state.tab[state.program] = 0;
+  const tab = tabs[state.tab[state.program]];
+  const s = target(tab);
+  const form = $("#form");
+  const scroll = form.parentElement.scrollTop;
+  form.innerHTML = "";
+  form.append(h("p", { class: "lead" }, tab.lead || ""));
+  const grid = h("div", { class: "grid" });
+  for (const f of tab.fields) { const node = renderField(f, s); if (node) grid.append(node); }
+  form.append(grid);
+  form.parentElement.scrollTop = scroll;
+  saveLocal();
+}
+
+function renderElectrons(s) {
+  if (!lastInfo || lastInfo.electrons === undefined) return h("div", { class: "pill-info" }, "Load a structure to check charge and multiplicity.");
+  const n = lastInfo.electrons, ok = n > 0 && (n + s.mult) % 2 === 1;
+  return h("div", { class: "pill-info " + (ok ? "ok" : "bad") }, h("b", {}, String(n)), " electrons · ",
+    ok ? "multiplicity matches" : `needs an ${n % 2 === 0 ? "odd" : "even"} multiplicity`);
+}
+
+/* ---------- editable tables ---------- */
+function cellInput(type, value, onInput, attrs = {}) {
+  const inp = h("input", Object.assign({ type }, attrs));
+  if (type === "checkbox") { inp.checked = !!value; inp.addEventListener("change", () => onInput(inp.checked)); }
+  else { inp.value = value ?? ""; inp.addEventListener("input", () => onInput(type === "number" ? parseFloat(inp.value) : inp.value)); }
+  return inp;
+}
+function renderAtoms() {
+  const box = h("div", {});
+  if (!state.atoms.length) return h("div", { class: "callout" }, "Load a structure to edit its atoms.");
+  const below = h("input", { type: "number", step: "0.01", min: "0", max: "1", value: "0.25", "aria-label": "Fractional c" });
+  box.append(h("div", { class: "tbl-tools" },
+    h("span", { class: "h" }, "Fix every atom with fractional c below"), below,
+    h("button", { class: "btn small", onclick: () => { const t = parseFloat(below.value); state.atoms.forEach((a) => { if (a.c < t) a.fx = a.fy = a.fz = true; }); renderForm(); scheduleBuild(); } }, "Fix them"),
+    h("button", { class: "btn small ghost", onclick: () => { state.atoms.forEach((a) => { a.fx = a.fy = a.fz = false; }); renderForm(); scheduleBuild(); } }, "Unfix all")));
+  const tb = h("tbody");
+  state.atoms.forEach((a, i) => {
+    tb.append(h("tr", {},
+      h("td", { class: "num" }, String(i + 1)), h("td", {}, a.el),
+      h("td", {}, cellInput("text", a.label, (v) => { a.label = v; scheduleBuild(); }, { size: 5, maxlength: 3 })),
+      h("td", { class: "num" }, a.a.toFixed(4)), h("td", { class: "num" }, a.b.toFixed(4)), h("td", { class: "num" }, a.c.toFixed(4)),
+      ...["fx", "fy", "fz"].map((k) => h("td", {}, cellInput("checkbox", a[k], (v) => { a[k] = v; scheduleBuild(); })))));
+  });
+  box.append(h("div", { class: "tbl-wrap tbl-scroll" }, h("table", { class: "tbl" },
+    h("thead", {}, h("tr", {}, ...["#", "El", "Label", "a", "b", "c", "Fix x", "Fix y", "Fix z"].map((x) => h("th", {}, x)))), tb)));
+  return box;
+}
+function renderSpecies() {
+  if (!state.species.length) return h("div", { class: "callout" }, "Load a structure to see its species.");
+  const tb = h("tbody");
+  state.species.forEach((r) => {
+    tb.append(h("tr", {},
+      h("td", {}, h("b", {}, r.Label)), h("td", {}, r.Element),
+      h("td", {}, cellInput("number", r.Mass, (v) => { r.Mass = v; scheduleBuild(); }, { step: "any", style: "width:84px;min-width:0" })),
+      h("td", {}, cellInput("text", r.Pseudopotential, (v) => { r.Pseudopotential = v; r.auto = false; scheduleBuild(); }, { style: "min-width:150px", spellcheck: "false", "aria-label": "Pseudopotential file" })),
+      h("td", {}, cellInput("number", r["Start. magnetisation"], (v) => { r["Start. magnetisation"] = v; scheduleBuild(); }, { step: "0.1", min: "-1", max: "1", style: "width:66px;min-width:0" })),
+      h("td", {}, cellInput("number", r["Hubbard U (eV)"], (v) => { r["Hubbard U (eV)"] = v; scheduleBuild(); }, { step: "0.5", min: "0", style: "width:62px;min-width:0" })),
+      h("td", {}, cellInput("text", r["U manifold"], (v) => { r["U manifold"] = v; scheduleBuild(); }, { size: 3, style: "min-width:0;width:52px" }))));
+  });
+  return h("div", { class: "tbl-wrap" }, h("table", { class: "tbl" },
+    h("thead", {}, h("tr", {}, ...["Label", "El", "Mass", "Pseudopotential file", "Start. mag.", "U (eV)", "U on"].map((x) => h("th", {}, x)))), tb));
+}
+let libResult = null;
+function renderLibrary() {
+  const box = h("div", { class: "callout" });
+  box.append(h("div", { style: "display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap" },
+    h("span", {}, h("b", {}, "Pseudopotential library. "), "Upload SSSP .json, PseudoDojo .djson or a CSV (element, filename, ecutwfc, ecutrho) to fill in files and cutoffs."),
+    h("button", { class: "btn small", onclick: () => $("#file-lib").click() }, "Upload library")));
+  if (libResult) {
+    if (!libResult.ok) box.append(h("div", { class: "h", style: "color:var(--bad);margin-top:8px" }, libResult.error));
+    else {
+      const tb = h("tbody");
+      libResult.rows.forEach((r) => tb.append(h("tr", {}, h("td", {}, r.Element), h("td", { class: "num" }, r.File), h("td", { class: "num" }, fmt(r["ecutwfc (Ry)"], 3)), h("td", { class: "num" }, fmt(r["ecutrho (Ry)"], 4)))));
+      box.append(h("div", { class: "tbl-wrap", style: "margin-top:10px" }, h("table", { class: "tbl" }, h("thead", {}, h("tr", {}, ...["El", "File", "ecutwfc", "ecutrho"].map((x) => h("th", {}, x)))), tb)));
+      if (libResult.missing.length) box.append(h("div", { class: "h", style: "margin-top:6px" }, "Not in this library: " + libResult.missing.join(", ")));
+      box.append(h("div", { style: "margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap" },
+        h("span", {}, "Recommended: ecutwfc ", h("b", { class: "mono" }, fmt(libResult.ecutwfc, 3)), " Ry, ecutrho ", h("b", { class: "mono" }, fmt(libResult.ecutrho, 4)), " Ry"),
+        h("button", { class: "btn small primary", onclick: applyLibrary }, "Apply to this calculation")));
+    }
+  }
+  return box;
+}
+function applyLibrary() {
+  for (const r of state.species) { const f = libResult.files[r.Element]; if (f) { r.Pseudopotential = f; r.auto = false; } }
+  if (libResult.ecutwfc) { state.qe.ecutwfc = libResult.ecutwfc; if (libResult.ecutrho) { state.qe.ecutrho = libResult.ecutrho; state.qe.ecutrho_auto = false; } }
+  renderForm(); scheduleBuild(); toast("Library applied: file names and cutoffs updated.");
+}
+function renderPath() {
+  const box = h("div", {});
+  box.append(h("div", { class: "group-title", style: "margin-bottom:8px" }, "High-symmetry path"));
+  box.append(h("div", { class: "tbl-tools" },
+    h("button", { class: "btn small primary", onclick: findPath }, "Find automatically (ASE)"),
+    h("button", { class: "btn small", onclick: () => { state.path.push({ label: "", k1: 0, k2: 0, k3: 0, n: 30 }); renderForm(); } }, "Add point"),
+    h("span", { class: "h" }, "Crystal coordinates. Set points to 1 where the path jumps.")));
+  if (state.path_placeholder) box.append(h("div", { class: "callout", style: "margin-bottom:10px" }, "This is a placeholder path (Γ → X). Use “Find automatically”, or enter the right path for your lattice."));
+  const tb = h("tbody");
+  state.path.forEach((r, i) => tb.append(h("tr", {},
+    h("td", {}, cellInput("text", r.label, (v) => { r.label = v; state.path_placeholder = false; scheduleBuild(); }, { size: 4 })),
+    ...["k1", "k2", "k3"].map((k) => h("td", {}, cellInput("number", r[k], (v) => { r[k] = v; state.path_placeholder = false; scheduleBuild(); }, { step: "any", style: "width:90px" }))),
+    h("td", {}, cellInput("number", r.n, (v) => { r.n = Math.max(1, Math.round(v || 1)); scheduleBuild(); }, { step: "1", min: "1", style: "width:80px" })),
+    h("td", {}, h("button", { class: "del", title: "Remove", onclick: () => { state.path.splice(i, 1); renderForm(); scheduleBuild(); } }, "×")))));
+  box.append(h("div", { class: "tbl-wrap" }, h("table", { class: "tbl" }, h("thead", {}, h("tr", {}, ...["Label", "k1", "k2", "k3", "Points to next", ""].map((x) => h("th", {}, x)))), tb)));
+  return box;
+}
+async function findPath() {
+  if (!lastInfo || !lastInfo.cell) return toast("Load a structure first.");
+  if (!(await ensurePackage("ase"))) return;
+  const r = JSON.parse(pyBuild.band_path(JSON.stringify(lastInfo.cell), 30));
+  if (!r.ok) return toast(r.error, 5000);
+  state.path = r.rows; state.path_placeholder = false; renderForm(); scheduleBuild(); toast("Path: " + r.rows.map((x) => x.label).join(" → "));
+}
+function renderExtra() {
+  const NLS = ["CONTROL", "SYSTEM", "ELECTRONS", "IONS", "CELL", "INPUTPH", "DOS", "PROJWFC", "INPUTPP", "PLOT", "BANDS", "PATH"];
+  const box = h("div", {});
+  const tb = h("tbody");
+  state.extra.forEach((r, i) => {
+    const sel = h("select", {}); NLS.forEach((n) => { const o = h("option", { value: n }, n); if (n === r.nl) o.selected = true; sel.append(o); });
+    sel.addEventListener("change", () => { r.nl = sel.value; scheduleBuild(); });
+    tb.append(h("tr", {}, h("td", {}, sel),
+      h("td", {}, cellInput("text", r.var, (v) => { r.var = v; scheduleBuild(); }, { placeholder: "starting_charge(1)", spellcheck: "false" })),
+      h("td", {}, cellInput("text", r.val, (v) => { r.val = v; scheduleBuild(); }, { placeholder: "0.5", spellcheck: "false" })),
+      h("td", {}, h("button", { class: "del", title: "Remove", onclick: () => { state.extra.splice(i, 1); renderForm(); scheduleBuild(); } }, "×"))));
+  });
+  box.append(h("div", { class: "tbl-wrap" }, h("table", { class: "tbl" }, h("thead", {}, h("tr", {}, ...["Namelist", "Variable", "Value (Fortran syntax)", ""].map((x) => h("th", {}, x)))), tb)));
+  box.append(h("div", { style: "margin-top:8px" }, h("button", { class: "btn small", onclick: () => { state.extra.push({ nl: "SYSTEM", var: "", val: "" }); renderForm(); } }, "Add variable")));
+  return box;
+}
+
+/* =================================================================
+   Left panel: structure, tools, recipes
+   ================================================================= */
+function renderLeft() {
+  const ex = $("#examples"); ex.innerHTML = "";
+  for (const name of Object.keys(EXAMPLES)) ex.append(h("button", { class: "chip", onclick: () => setStructure(clone(EXAMPLES[name])) }, name));
+  $("#btn-clear").hidden = !state.structure;
+  $("#final-name").textContent = state.final ? state.final.name : "none";
+  $("#btn-final-clear").hidden = !state.final;
+  const rec = $("#recipes"); rec.innerHTML = "";
+  for (const [title, desc, values] of RECIPES[state.program === "ORCA" ? "ORCA" : "QE"])
+    rec.append(h("button", { class: "recipe", onclick: () => applyRecipe(state.program, values, title) }, h("b", {}, title), h("span", {}, desc)));
+  renderSummary(); renderTools();
+}
+function renderSummary() {
+  const box = $("#summary"); box.innerHTML = "";
+  if (!state.structure) return;
+  if (!lastInfo) { box.append(h("div", { class: "notes" }, "Reading…")); return; }
+  box.append(h("div", { class: "formula", html: esc(lastInfo.formula).replace(/(\d+)/g, "<sub>$1</sub>") }));
+  const kv = h("div", { class: "kv" }, h("span", {}, "Atoms"), h("span", {}, String(lastInfo.n)), h("span", {}, "File"), h("span", {}, state.structure.name));
+  if (lastInfo.periodic) {
+    const [a, b, c, al, be, ga] = lastInfo.cell_params;
+    kv.append(h("span", {}, "a, b, c"), h("span", {}, `${a.toFixed(3)}, ${b.toFixed(3)}, ${c.toFixed(3)} Å`),
+      h("span", {}, "α, β, γ"), h("span", {}, `${al.toFixed(1)}°, ${be.toFixed(1)}°, ${ga.toFixed(1)}°`),
+      h("span", {}, "Volume"), h("span", {}, `${lastInfo.volume.toFixed(2)} Å³`));
+    if (lastInfo.spacegroup) kv.append(h("span", {}, "Space group"), h("span", {}, lastInfo.spacegroup));
+    if (lastInfo.slab_axis !== null && lastInfo.slab_axis !== undefined) kv.append(h("span", {}, "Vacuum along"), h("span", {}, "abc"[lastInfo.slab_axis]));
+  } else kv.append(h("span", {}, "Type"), h("span", {}, "molecule"));
+  box.append(kv);
+  for (const n of lastInfo.notes || []) box.append(h("div", { class: "notes" }, n));
+}
+function renderTools() {
+  const card = $("#tools-card"), box = $("#tools");
+  const periodic = lastInfo && (lastInfo.periodic || state.ops.length);
+  card.hidden = !periodic;
+  if (!periodic) return;
+  box.innerHTML = "";
+  const num = (v, attrs = {}) => h("input", Object.assign({ type: "number", value: String(v) }, attrs));
+  const n1 = num(2, { min: 1 }), n2 = num(2, { min: 1 }), n3 = num(1, { min: 1 });
+  box.append(h("div", { class: "tool-title" }, "Supercell"),
+    h("div", { class: "tool-row" }, h("div", {}, h("label", {}, "n1"), n1), h("div", {}, h("label", {}, "n2"), n2), h("div", {}, h("label", {}, "n3"), n3),
+      h("button", { class: "btn small", onclick: () => addOp(["supercell", +n1.value, +n2.value, +n3.value]) }, "Make")));
+  const ax = h("select", {}, h("option", { value: "0" }, "a"), h("option", { value: "1" }, "b"), h("option", { value: "2", selected: true }, "c"));
+  const vac = num(15, { step: "1", min: "0" });
+  box.append(h("div", { class: "tool-title" }, "Add vacuum"),
+    h("div", { class: "tool-row" }, h("div", {}, h("label", {}, "Axis"), ax), h("div", {}, h("label", {}, "Vacuum (Å)"), vac),
+      h("button", { class: "btn small", onclick: () => addOp(["vacuum", +ax.value, +vac.value]) }, "Add")));
+  const mh = num(1), mk = num(0), ml = num(0), lay = num(4, { min: 1 }), svac = num(15, { min: 0 });
+  box.append(h("div", { class: "tool-title" }, "Slab from bulk (needs ASE)"),
+    h("div", { class: "tool-row" }, h("div", {}, h("label", {}, "h"), mh), h("div", {}, h("label", {}, "k"), mk), h("div", {}, h("label", {}, "l"), ml)),
+    h("div", { class: "tool-row" }, h("div", {}, h("label", {}, "Layers"), lay), h("div", {}, h("label", {}, "Vacuum (Å)"), svac),
+      h("button", { class: "btn small", onclick: async () => { if (await ensurePackage("ase")) addOp(["slab", [+mh.value, +mk.value, +ml.value], +lay.value, +svac.value]); } }, "Build")));
+  box.append(h("div", { class: "tool-title" }, "Primitive cell (needs spglib)"),
+    h("div", { class: "tool-row" }, h("span", { class: "h", style: "flex:1" }, "Fewer atoms, same crystal: often several times cheaper."),
+      h("button", { class: "btn small", onclick: async () => { if (await ensurePackage("spglib")) addOp(["primitive", 0.001]); } }, "Apply")));
+  if (state.ops.length) {
+    const chain = h("div", { class: "opchain" }, h("span", { class: "h" }, "Applied:"));
+    state.ops.forEach((o) => chain.append(h("span", { class: "op" }, o[0])));
+    chain.append(h("button", { class: "btn ghost small", onclick: () => { state.ops.pop(); state.atoms = []; scheduleBuild(0); } }, "Undo"),
+      h("button", { class: "btn ghost small", onclick: () => { state.ops = []; state.atoms = []; scheduleBuild(0); } }, "Reset"));
+    box.append(chain);
+  }
+}
+function addOp(op) { state.ops.push(op); state.atoms = []; scheduleBuild(0); toast("Structure updated."); }
+function setStructure(s) {
+  state.structure = s; state.ops = []; state.atoms = []; state.species = [];
+  state.path = defaultState().path; state.path_placeholder = true;
+  lastInfo = null; renderLeft(); scheduleBuild(0);
+}
+
+/* =================================================================
+   Building (calls Python) and showing the result
+   ================================================================= */
+let buildTimer = null;
+function scheduleBuild(ms = 220) { clearTimeout(buildTimer); buildTimer = setTimeout(runBuild, ms); saveLocal(); }
+function payload() {
+  return { program: state.program, structure: state.structure, final: state.final, ops: state.ops,
+    orca: state.orca, qe: state.qe, atoms: state.atoms, species: state.species, extra: state.extra,
+    path: state.path, path_placeholder: state.path_placeholder, job: state.job };
+}
+let viewKey = "";
+function runBuild() {
+  if (!pyBuild) return;
+  let res;
+  try { res = JSON.parse(pyBuild.build(JSON.stringify(payload()))); }
+  catch (e) { res = { files: {}, errors: ["Something went wrong while building: " + e.message], warnings: [] }; }
+  lastResult = res;
+  const prevInfo = lastInfo;
+  lastInfo = res.info || null;
+  if (res.ops_failed) state.ops = [];
+  let rerender = false;
+  if (state.program === "QE" && res.atoms) {
+    if (state.atoms.length !== res.atoms.length) { state.atoms = res.atoms; rerender = true; }
+    else state.atoms.forEach((a, i) => Object.assign(a, { el: res.atoms[i].el, a: res.atoms[i].a, b: res.atoms[i].b, c: res.atoms[i].c }));
+    const sameLabels = state.species.length === res.species.length && state.species.every((r, i) => r.Label === res.species[i].Label);
+    if (sameLabels) {
+      state.species.forEach((r, i) => {
+        if (r.Pseudopotential !== res.species[i].Pseudopotential) rerender = true;
+        Object.assign(r, res.species[i]);
+      });
+    } else { state.species = res.species; rerender = true; }
+  }
+  if (!prevInfo || !lastInfo || prevInfo.formula !== lastInfo.formula || prevInfo.n !== lastInfo.n ||
+      JSON.stringify(prevInfo.kgrid_auto) !== JSON.stringify(lastInfo.kgrid_auto) || prevInfo.electrons !== (lastInfo && lastInfo.electrons)) rerender = true;
+  if (rerender && !document.activeElement.closest("#form")) renderForm();
+  else if (rerender) setTimeout(() => { if (!document.activeElement.closest("#form")) renderForm(); }, 600);
+  renderSummary(); renderTools(); renderStatus(); renderFiles();
+  const vk = JSON.stringify([res.view, state.view]);
+  if (vk !== viewKey) { viewKey = vk; drawViewer(); }
+  saveLocal();
+}
+
+function renderStatus() {
+  const r = lastResult || { errors: [], warnings: [] };
+  const st = $("#status"); st.innerHTML = "";
+  if (r.errors.length) st.append(h("span", { class: "badge bad" }, `${r.errors.length} problem${r.errors.length > 1 ? "s" : ""}`));
+  if (r.warnings.length) st.append(h("span", { class: "badge warn" }, `${r.warnings.length} note${r.warnings.length > 1 ? "s" : ""}`));
+  if (!r.errors.length) st.append(h("span", { class: "badge ok" }, "✓ Ready"));
+  const ul = $("#issues"); ul.innerHTML = "";
+  r.errors.forEach((e) => ul.append(h("li", { class: "bad" }, e)));
+  r.warnings.forEach((w) => ul.append(h("li", { class: "warn" }, w)));
+  ul.hidden = !(r.errors.length || r.warnings.length);
+}
+
+let activeFile = null;
+function renderFiles() {
+  const files = (lastResult && lastResult.files) || {};
+  const names = Object.keys(files);
+  const tabs = $("#ftabs"); tabs.innerHTML = "";
+  if (!names.length) { $("#code").innerHTML = '<span class="line"></span>'; $("#fname").textContent = "—"; activeFile = null; return; }
+  if (!names.includes(activeFile)) activeFile = names[0];
+  names.forEach((n) => tabs.append(h("button", { role: "tab", "aria-selected": String(n === activeFile), onclick: () => { activeFile = n; renderFiles(); } }, n)));
+  $("#fname").textContent = activeFile;
+  $("#code").innerHTML = highlight(activeFile, files[activeFile]);
+}
+
+/* ---------- syntax colouring ---------- */
+function highlight(name, text) {
+  const qe = /\.in$/.test(name) && !/\.inp$/.test(name);
+  const orca = /\.inp$/.test(name);
+  const shell = /\.(sh|slurm|pbs)$/.test(name);
+  return text.replace(/\n$/, "").split("\n").map((raw) => {
+    let line = esc(raw);
+    const t = raw.trim();
+    if (orca) {
+      if (t.startsWith("#")) line = `<span class="tk-com">${line}</span>`;
+      else if (t.startsWith("!")) line = `<span class="tk-bang">${line}</span>`;
+      else if (/^%\w+/.test(t) || /^end$/i.test(t) || /^\*/.test(t)) line = `<span class="tk-head">${line}</span>`;
+      else line = line.replace(/(-?\d+\.\d+(?:[eE][-+]?\d+)?)/g, '<span class="tk-num">$1</span>').replace(/(&quot;[^&]*&quot;)/g, '<span class="tk-str">$1</span>');
+    } else if (qe) {
+      if (/^&\w+/.test(t) || t === "/") line = `<span class="tk-head">${line}</span>`;
+      else if (/^[A-Z_]{4,}( |$)/.test(t)) line = line.replace(/^(\s*)([A-Z_]+)/, '$1<span class="tk-head">$2</span>');
+      else if (t.includes("=")) line = line.replace(/^(\s*)([\w()]+)(\s*=\s*)(.*)$/, (m, a, k, eq, v) => {
+          v = v.replace(/^('[^']*')/, '<span class="tk-str">$1</span>').replace(/^(\.true\.|\.false\.)/, '<span class="tk-bool">$1</span>').replace(/^(-?[\d.]+(?:d-?\d+)?)$/, '<span class="tk-num">$1</span>');
+          return `${a}<span class="tk-key">${k}</span>${eq}${v}`; });
+      else line = line.replace(/(!.*)$/, '<span class="tk-com">$1</span>');
+    } else if (shell) {
+      if (/^#(SBATCH|PBS)/.test(t)) line = `<span class="tk-key">${line}</span>`;
+      else if (t.startsWith("#")) line = `<span class="tk-com">${line}</span>`;
+    } else if (/\.py$/.test(name)) {
+      line = line.replace(/(#.*)$/, '<span class="tk-com">$1</span>');
+    }
+    return `<span class="line">${line || " "}</span>`;
+  }).join("");
+}
+
+/* =================================================================
+   3D viewer (3Dmol.js)
+   ================================================================= */
+let viewer = null, molReady = null;
+function loadMol() {
+  if (molReady) return molReady;
+  molReady = new Promise((res, rej) => {
+    const tryLoad = (srcs) => {
+      if (!srcs.length) return rej(new Error("3Dmol could not load"));
+      const sc = document.createElement("script"); sc.src = srcs[0]; sc.onload = res; sc.onerror = () => tryLoad(srcs.slice(1));
+      document.head.append(sc);
+    };
+    tryLoad(["https://3Dmol.org/build/3Dmol-min.js", "https://cdn.jsdelivr.net/npm/3dmol@2.4.0/build/3Dmol-min.js"]);
+  });
+  return molReady;
+}
+async function drawViewer() {
+  const v = lastResult && lastResult.view;
+  $("#v-legend").hidden = !(v && v.highlight.length);
+  $("#v-repeat").disabled = !(v && v.cell);
+  if (!v) { $("#viewer-ph").hidden = false; if (viewer) viewer.clear(); return; }
+  try { await loadMol(); } catch (e) { $("#viewer-ph").textContent = "The 3D viewer couldn’t load (offline?)."; return; }
+  $("#viewer-ph").hidden = true;
+  const bg = getComputedStyle(document.documentElement).getPropertyValue("--mol-bg").trim() || "white";
+  if (!viewer) viewer = $3Dmol.createViewer($("#viewer"), { backgroundColor: bg });
+  viewer.clear();
+  const rep = (v.cell ? state.view.repeat : "1×1×1").split("×").map(Number);
+  const n0 = v.symbols.length, lines = [], hl = [];
+  let count = 0;
+  for (let i = 0; i < rep[0]; i++) for (let j = 0; j < rep[1]; j++) for (let k = 0; k < rep[2]; k++) {
+    const shift = v.cell ? [0, 1, 2].map((d) => i * v.cell[0][d] + j * v.cell[1][d] + k * v.cell[2][d]) : [0, 0, 0];
+    v.symbols.forEach((el, a) => {
+      const p = v.positions[a];
+      lines.push(`${el} ${(p[0] + shift[0]).toFixed(5)} ${(p[1] + shift[1]).toFixed(5)} ${(p[2] + shift[2]).toFixed(5)}`);
+      if (v.highlight.includes(a)) hl.push(count);
+      count++;
+    });
+  }
+  const model = viewer.addModel(`${count}\nstructure\n${lines.join("\n")}`, "xyz");
+  viewer.setStyle({}, { stick: { radius: 0.13 }, sphere: { scale: 0.28 } });
+  if (hl.length) viewer.setStyle({ index: hl }, { stick: { radius: 0.13 }, sphere: { scale: 0.42, color: "#E11D48" } });
+  if (v.cell) {
+    const c = v.cell, o = [0, 0, 0], add = (p, q) => p.map((x, d) => x + q[d]);
+    const pts = [o, c[0], c[1], c[2], add(c[0], c[1]), add(c[0], c[2]), add(c[1], c[2]), add(add(c[0], c[1]), c[2])];
+    [[0, 1], [0, 2], [0, 3], [1, 4], [1, 5], [2, 4], [2, 6], [3, 5], [3, 6], [4, 7], [5, 7], [6, 7]].forEach(([a, b]) =>
+      viewer.addCylinder({ start: { x: pts[a][0], y: pts[a][1], z: pts[a][2] }, end: { x: pts[b][0], y: pts[b][1], z: pts[b][2] }, radius: 0.035, color: "#94A3B8", fromCap: 1, toCap: 1 }));
+  }
+  if (state.view.labels) model.selectedAtoms({}).forEach((at) => { if (at.index < n0) viewer.addLabel(String(at.index), { position: at, fontSize: 11, fontColor: "#0F172A", backgroundColor: "#FFFFFF", backgroundOpacity: 0.7, inFront: true }); });
+  viewer.zoomTo(); viewer.render();
+}
+
+/* =================================================================
+   ZIP (no compression, no external library)
+   ================================================================= */
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(bytes) { let c = 0xFFFFFFFF; for (const b of bytes) c = CRC_TABLE[(c ^ b) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(files) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  const d = new Date(), dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1),
+        dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  for (const [name, text] of Object.entries(files)) {
+    const nameB = enc.encode(name), data = enc.encode(text), crc = crc32(data);
+    const exec = /\.(sh|slurm|pbs|py)$/.test(name);
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint16(6, 0x0800, true); local.setUint16(8, 0, true);
+    local.setUint16(10, dosTime, true); local.setUint16(12, dosDate, true); local.setUint32(14, crc, true);
+    local.setUint32(18, data.length, true); local.setUint32(22, data.length, true); local.setUint16(26, nameB.length, true); local.setUint16(28, 0, true);
+    parts.push(new Uint8Array(local.buffer), nameB, data);
+    const cen = new DataView(new ArrayBuffer(46));
+    cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 0x031E, true); cen.setUint16(6, 20, true); cen.setUint16(8, 0x0800, true);
+    cen.setUint16(10, 0, true); cen.setUint16(12, dosTime, true); cen.setUint16(14, dosDate, true); cen.setUint32(16, crc, true);
+    cen.setUint32(20, data.length, true); cen.setUint32(24, data.length, true); cen.setUint16(28, nameB.length, true);
+    cen.setUint16(30, 0, true); cen.setUint16(32, 0, true); cen.setUint16(34, 0, true); cen.setUint16(36, 0, true);
+    cen.setUint32(38, ((exec ? 0o100755 : 0o100644) << 16) >>> 0, true); cen.setUint32(42, offset, true);
+    central.push(new Uint8Array(cen.buffer), nameB);
+    offset += 30 + nameB.length + data.length;
+  }
+  const cenSize = central.reduce((s, p) => s + p.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, Object.keys(files).length, true); end.setUint16(10, Object.keys(files).length, true);
+  end.setUint32(12, cenSize, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: "application/zip" });
+}
+
+/* =================================================================
+   Events
+   ================================================================= */
+function wire() {
+  document.querySelectorAll("#prog button").forEach((b) => b.addEventListener("click", () => {
+    state.program = b.dataset.p;
+    document.querySelectorAll("#prog button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    lastInfo = null; renderLeft(); renderTabs(); renderForm(); scheduleBuild(0);
+  }));
+  const drop = $("#drop");
+  drop.addEventListener("click", () => $("#file-struct").click());
+  drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#file-struct").click(); } });
+  drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", async (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) setStructure({ name: f.name, text: await readFile(f) }); });
+  $("#file-struct").addEventListener("change", async (e) => { const f = e.target.files[0]; if (f) setStructure({ name: f.name, text: await readFile(f) }); e.target.value = ""; });
+  $("#btn-clear").addEventListener("click", () => { state.structure = null; state.ops = []; state.atoms = []; state.species = []; lastInfo = null; renderLeft(); scheduleBuild(0); });
+  $("#btn-final").addEventListener("click", () => $("#file-final").click());
+  $("#file-final").addEventListener("change", async (e) => { const f = e.target.files[0]; if (f) { state.final = { name: f.name, text: await readFile(f) }; renderLeft(); scheduleBuild(0); } e.target.value = ""; });
+  $("#btn-final-clear").addEventListener("click", () => { state.final = null; renderLeft(); scheduleBuild(0); });
+  $("#file-lib").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    const els = [...new Set(state.species.map((r) => r.Element))];
+    libResult = JSON.parse(pyBuild.library(f.name, await readFile(f), JSON.stringify(els)));
+    renderForm();
+  });
+  $("#v-repeat").addEventListener("change", (e) => { state.view.repeat = e.target.value; viewKey = ""; drawViewer(); saveLocal(); });
+  $("#v-labels").addEventListener("change", (e) => { state.view.labels = e.target.checked; viewKey = ""; drawViewer(); saveLocal(); });
+  $("#btn-reset-view").addEventListener("click", () => { if (viewer) { viewer.zoomTo(); viewer.render(); } });
+  $("#btn-copy").addEventListener("click", async () => {
+    const t = lastResult && lastResult.files[activeFile]; if (!t) return;
+    try { await navigator.clipboard.writeText(t); toast("Copied."); }
+    catch (e) { const r = document.createRange(); r.selectNodeContents($("#code")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected: press Ctrl/⌘ + C."); }
+  });
+  $("#btn-dl").addEventListener("click", () => { const t = lastResult && lastResult.files[activeFile]; if (t) download(activeFile, t); });
+  $("#btn-zip").addEventListener("click", () => {
+    const files = lastResult && lastResult.files; if (!files || !Object.keys(files).length) return toast("Nothing to download yet.");
+    const name = state.program === "ORCA" ? `${state.orca.basename || "job"}_orca.zip` : `${state.qe.prefix || "pwscf"}_qe.zip`;
+    download(name, makeZip(files));
+  });
+  $("#btn-save").addEventListener("click", () => download("dft_input_settings.json", JSON.stringify({ app: "DFT Input Maker (web)", version: 1, state }, null, 1), "application/json"));
+  $("#btn-load").addEventListener("click", () => $("#file-settings").click());
+  $("#file-settings").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try {
+      const data = JSON.parse(await readFile(f));
+      if (!data || data.app !== "DFT Input Maker (web)" || !data.state) throw new Error("This isn’t a settings file from the web version of the DFT Input Maker.");
+      const d = defaultState(), s = data.state;
+      state = Object.assign(d, s, { orca: Object.assign(d.orca, s.orca), qe: Object.assign(d.qe, s.qe), job: Object.assign(d.job, s.job) });
+      lastInfo = null; libResult = null; syncProgramButtons(); renderLeft(); renderTabs(); renderForm(); scheduleBuild(0);
+      toast("Settings loaded.");
+    } catch (err) { toast(err.message, 5000); }
+  });
+}
+function syncProgramButtons() { document.querySelectorAll("#prog button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.p === state.program))); }
+
+/* =================================================================
+   Start
+   ================================================================= */
+(async function main() {
+  try {
+    await bootPython();
+  } catch (e) {
+    document.querySelectorAll("#steps li.doing").forEach((li) => (li.className = "fail"));
+    $(".loader p").textContent = "Python couldn’t start: " + (e && e.message ? e.message : e) + ". Check your internet connection and reload.";
+    return;
+  }
+  state = loadLocal() || defaultState();
+  $("#v-repeat").value = state.view.repeat; $("#v-labels").checked = state.view.labels;
+  syncProgramButtons(); wire(); renderLeft(); renderTabs(); renderForm(); runBuild();
+  $("#loading").hidden = true;
+})();
+</script>
+</body>
+</html>
